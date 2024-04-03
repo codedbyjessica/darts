@@ -4,10 +4,12 @@ import React, { useEffect, useRef, useState } from "react"
 import * as THREE from "three";
 
 const maxDartNumber = 5 
-const boardDistance = 3
+const boardDistance = 5
+let isDragging = false
+let dartNumber = 0
 
 const Experience = ({canvasRef, cameraRef}) => {
-    console.log('experience load')
+    console.log('render')
     const dartBoard = useLoader(THREE.TextureLoader, '/images/dartboard.png') 
     dartBoard.repeat.set(2, 2); 
     dartBoard.offset.set(-0.5, -0.75);
@@ -21,41 +23,49 @@ const Experience = ({canvasRef, cameraRef}) => {
     
     const { isPresenting, player, controllers } = useXR()
 
-    const [dartNumber, setDartNumber] = useState(0)
+    // const [dartNumber, setDartNumber] = useState(0)
     const [activeController, setActiveController] = useState(null)
     const [dartAnimationPlaying, setDartAnimationPlaying] = useState(false)
-    const [isDragging, setIsDragging] = useState(false)
+    // const [isDragging, setIsDragging] = useState(false)
 
     const [velocity, setVelocity] = useState(new THREE.Vector3())
     
     const raycaster = new THREE.Raycaster();
 
     const resetDartNumber = () => {
+        console.log('current dart', dartNumber)
         if (dartNumber + 1 > maxDartNumber) {
-            setDartNumber(0)
+            console.log("next dart", 0)
+            // setDartNumber(0)
+            dartNumber = 0
         } else {
-            setDartNumber(dartNumber + 1)
+            console.log("next dart", dartNumber + 1)
+            // setDartNumber(dartNumber + 1)
+            dartNumber += 1
         }
     }
 
     const handleMouseDown = () => {
         if (!dartAnimationPlaying) {
-            setIsDragging(true);
+            console.log('handleMouseDown')
+            // setIsDragging(true);
+            isDragging = true
         }
     };
 
     const handleMouseUp = () => {
         if (!dartAnimationPlaying) {
-            setIsDragging(false);
+            console.log('handleMouseUp')
+            // setIsDragging(false);
+            isDragging = false
             setVelocity(getNewVelocity(velocity))
             shootDart()
         }
     };
 
     const handleMouseMove = (event) => {
-        const dartExists = !dartAnimationPlaying && dartRef.current[dartNumber] && dartRef.current[dartNumber].current && dartRef.current[dartNumber].current.position;
-        console.log('mousemove', dartNumber, !dartAnimationPlaying, dartRef.current[dartNumber], isDragging)
-        if (dartExists) {
+        console.log("handleMouseMove")
+        if (!dartAnimationPlaying && dartRef.current[dartNumber].current) {
             if (isDragging) {
                 const rect = canvasRef.current.getBoundingClientRect();
                 const mouse = {
@@ -64,6 +74,7 @@ const Experience = ({canvasRef, cameraRef}) => {
                 };
                 raycaster.setFromCamera(mouse, cameraRef.current);
                 const intersects = raycaster.intersectObject(boardRef.current);
+                console.log(intersects)
                 if (intersects.length > 0) {
                     const position = intersects[0].point;
                     const minX = -2.5
@@ -74,7 +85,9 @@ const Experience = ({canvasRef, cameraRef}) => {
                     const constrainedPosition = new THREE.Vector3(
                         Math.min(Math.max(position.x, minX), maxX),
                         Math.min(Math.max(position.y, minY), maxY),
-                        boardDistance + 5
+                        // position.x,
+                        // position.y,
+                        boardDistance + 3
                     );
 
                     dartRef.current[dartNumber].current.position.x = constrainedPosition.x
@@ -82,9 +95,9 @@ const Experience = ({canvasRef, cameraRef}) => {
                     dartRef.current[dartNumber].current.position.z = constrainedPosition.z
                 }
             } else {
-                dartRef.current[dartNumber].current.position.x = 0
-                dartRef.current[dartNumber].current.position.y = -100
-                dartRef.current[dartNumber].current.position.z = 0
+                // dartRef.current[dartNumber].current.position.x = dartNumber - maxDartNumber/2
+                // dartRef.current[dartNumber].current.position.y = 0
+                // dartRef.current[dartNumber].current.position.z = 0
             }
         }
 
@@ -123,13 +136,14 @@ const Experience = ({canvasRef, cameraRef}) => {
     
     }
 
-    const betweenNextDartTime = 2000;
+    const betweenNextDartTime = 1000;
 
     const getNewVelocity = (velocity, activeController) => {
+        const velocityMultiplier = 3;
         const newVelocity = velocity
-        newVelocity.x = ( Math.random() - 0.5 ) * 2;
-        newVelocity.y = ( Math.random() - 0.5 ) * 2;
-        newVelocity.z = ( Math.random() - 9 );
+        newVelocity.x = ( Math.random() - 0.5 ) * 2 * velocityMultiplier;
+        newVelocity.y = ( Math.random() - 0.5 ) * 2 * velocityMultiplier;
+        newVelocity.z = ( Math.random() - 9 ) * velocityMultiplier;
         if (activeController) {
             newVelocity.applyQuaternion( activeController.quaternion );
         }
@@ -137,7 +151,6 @@ const Experience = ({canvasRef, cameraRef}) => {
     }
 
     const shootDart = () => {
-
         setTimeout(() => {
             setDartAnimationPlaying(true)
         }, 100);
@@ -148,18 +161,6 @@ const Experience = ({canvasRef, cameraRef}) => {
         }, betweenNextDartTime);
 
     }
-
-    useEffect(() => {
-        if (activeController) {
-            dartRef.current[dartNumber].current.position.x = activeController.position.x
-            dartRef.current[dartNumber].current.position.y = activeController.position.y
-            dartRef.current[dartNumber].current.position.z = activeController.position.z
-
-            setVelocity(getNewVelocity(velocity, activeController))
-            shootDart()
-
-        }
-    }, [activeController])
 
     const setUpControllers = controller => {
         controller.addEventListener( 'selectstart', () => onSelectStart(controller));
@@ -193,6 +194,20 @@ const Experience = ({canvasRef, cameraRef}) => {
         document.removeEventListener('touchmove', () => handleMouseMove());
     }
 
+
+    useEffect(() => {
+        if (activeController) {
+            console.log('activecontroller')
+            dartRef.current[dartNumber].current.position.x = activeController.position.x
+            dartRef.current[dartNumber].current.position.y = activeController.position.y
+            dartRef.current[dartNumber].current.position.z = activeController.position.z
+
+            setVelocity(getNewVelocity(velocity, activeController))
+            shootDart()
+
+        }
+    }, [activeController])
+    
 	useEffect(() => {
         const controllersExist = controllers.length > 0 && controllers[0] && controllers[1] && controllers[0].controller && controllers[1].controller;
         if (controllersExist) {
@@ -202,11 +217,12 @@ const Experience = ({canvasRef, cameraRef}) => {
 	}, [controllers]);
 
     useEffect(() => {
+        console.log('isdragging', isDragging)
         setUpWebEvents()
-        return () => {
+        return () => {    
             destroyWebEvents()
         };
-    }, [isDragging])
+    }, [])
 
 
     useFrame((_, delta) => {   
@@ -225,6 +241,10 @@ const Experience = ({canvasRef, cameraRef}) => {
     //     if (player) player.position.set(0, 3, 4);
     // }, [isPresenting])
     const colors = ["red", "orange", "yellow", "green", "blue"]
+
+    useEffect(() => {
+        console.log("useeffect", dartNumber)
+    }, [dartNumber])
 
 	return (
         <>

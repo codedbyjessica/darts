@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react"
-import { OrbitControls } from "@react-three/drei"
+import { OrbitControls, PerspectiveCamera } from "@react-three/drei"
 import { Canvas } from "@react-three/fiber"
 import { Controllers, VRButton, XR, XRButton } from "@react-three/xr"
 import Experience from "../scenes/experience"
@@ -28,17 +28,17 @@ const IndexPage = () => {
 				ref={canvasRef}
 			>
 				<color attach="background" args={['#808080']} />
-				<perspectiveCamera
+				<PerspectiveCamera
 					ref={cameraRef}
 					makeDefault
-					position={[0, 5, 0]}
+					position={[0, 2, 12]}
 				/>
 				<XR>
 					<Controllers />
-					<OrbitControls
+					{/* <OrbitControls
 						enableDamping={true}
 						enabled={false}
-					/>
+					/> */}
 
 					<Experience canvasRef={canvasRef} cameraRef={cameraRef} />
 
