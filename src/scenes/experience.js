@@ -1,25 +1,39 @@
-import { useFrame, useLoader } from "@react-three/fiber";
+import { PerspectiveCamera } from "@react-three/drei";
+import { useFrame, useLoader, useThree } from "@react-three/fiber";
 import { useXR } from "@react-three/xr";
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useMemo, useRef, useState } from "react"
 import * as THREE from "three";
 
-const maxDartNumber = 5 
+const maxDartNumber = 6 
 const boardDistance = 5
+const boardWidth = 8
+const boardHeight = 8
+
+const defaultCameraPos = [0, 2, 12]
+
 let isDragging = false
 let dartNumber = 0
 
-const Experience = ({canvasRef, cameraRef}) => {
+
+const Experience = ({canvasRef}) => {
     console.log('render')
     const dartBoard = useLoader(THREE.TextureLoader, '/images/dartboard.png') 
     dartBoard.repeat.set(2, 2); 
     dartBoard.offset.set(-0.5, -0.75);
 
+
+	const cameraRef = useRef()
     const groupRef = useRef()
 	const boardRef = useRef()
-    const dartRef = useRef([React.createRef(), React.createRef(), React.createRef(), React.createRef(), React.createRef(), React.createRef()])
-    // for (let i = 0; i < maxDartNumber; i++) {
-    //     dartRef.current.push(React.createRef());
-    // }
+    const dartRef = useRef([React.createRef(), React.createRef(), React.createRef(), React.createRef(), React.createRef(), React.createRef(), React.createRef()])
+    // const dartRef = useRef([])
+    // useMemo(() => {
+    //     for (let i = 0; i <= maxDartNumber; i++) {
+    //         dartRef.current.push(React.createRef());
+    //     }
+    // })
+
+    const { scene } = useThree()
     
     const { isPresenting, player, controllers } = useXR()
 
@@ -63,24 +77,34 @@ const Experience = ({canvasRef, cameraRef}) => {
         }
     };
 
-    const handleMouseMove = (event) => {
-        console.log("handleMouseMove")
+    const handleMouseMove = (event, isTouch) => {
+        console.log("handleMouseMove", scene)
         if (!dartAnimationPlaying && dartRef.current[dartNumber].current) {
             if (isDragging) {
                 const rect = canvasRef.current.getBoundingClientRect();
+                
                 const mouse = {
-                  x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
-                  y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
+                    x: ((event.clientX - rect.left) / rect.width) * 2 - 1,
+                    y: -((event.clientY - rect.top) / rect.height) * 2 + 1,
                 };
+
+                if (isTouch) {
+                    mouse.x = (event.changedTouches[0].clientX / window.innerWidth) * 2 - 1;
+                    mouse.y = -(event.changedTouches[0].clientY / window.innerHeight) * 2 + 1;
+                }
+
+
                 raycaster.setFromCamera(mouse, cameraRef.current);
-                const intersects = raycaster.intersectObject(boardRef.current);
+                // const intersects = raycaster.intersectObject(boardRef.current);
+
+                const intersects = raycaster.intersectObjects(scene.children);
                 console.log(intersects)
                 if (intersects.length > 0) {
                     const position = intersects[0].point;
-                    const minX = -2.5
-                    const maxX = 2.5
+                    const minX = -boardWidth/2
+                    const maxX = boardWidth/2
                     const minY = 0
-                    const maxY = 5
+                    const maxY = boardHeight
                 
                     const constrainedPosition = new THREE.Vector3(
                         Math.min(Math.max(position.x, minX), maxX),
@@ -115,7 +139,7 @@ const Experience = ({canvasRef, cameraRef}) => {
         let geometry, material;
     
         switch ( data.targetRayMode ) {
-    
+
             case 'tracked-pointer':
     
                 geometry = new THREE.BufferGeometry();
@@ -158,6 +182,9 @@ const Experience = ({canvasRef, cameraRef}) => {
         setTimeout(() => {
             setDartAnimationPlaying(false)
             resetDartNumber()
+            cameraRef.current.position.x = defaultCameraPos[0] 
+            cameraRef.current.position.y = defaultCameraPos[1] 
+            cameraRef.current.position.z = defaultCameraPos[2] 
         }, betweenNextDartTime);
 
     }
@@ -181,7 +208,7 @@ const Experience = ({canvasRef, cameraRef}) => {
 
         document.addEventListener('touchstart', () => handleMouseDown());
         document.addEventListener('touchend', () => handleMouseUp());
-        document.addEventListener('touchmove', event => handleMouseMove(event));
+        document.addEventListener('touchmove', event => handleMouseMove(event, true));
     }
 
     const destroyWebEvents = () => {
@@ -229,6 +256,8 @@ const Experience = ({canvasRef, cameraRef}) => {
         if (dartAnimationPlaying && dartRef.current[dartNumber].current) {
             if (dartRef.current[dartNumber].current.position.z >= -boardDistance) {
                 dartRef.current[dartNumber].current.position.z += velocity.z * delta
+                cameraRef.current.position.z = dartRef.current[dartNumber].current.position.z + 5
+
                 if (isPresenting) {
                     dartRef.current[dartNumber].current.position.x += velocity.x * delta
                     dartRef.current[dartNumber].current.position.y += velocity.y * delta
@@ -240,7 +269,7 @@ const Experience = ({canvasRef, cameraRef}) => {
     // useEffect(() => {
     //     if (player) player.position.set(0, 3, 4);
     // }, [isPresenting])
-    const colors = ["red", "orange", "yellow", "green", "blue"]
+    const colors = ["red", "orange", "yellow", "green", "blue", "purple"]
 
     useEffect(() => {
         console.log("useeffect", dartNumber)
@@ -248,10 +277,15 @@ const Experience = ({canvasRef, cameraRef}) => {
 
 	return (
         <>
+            <PerspectiveCamera
+                ref={cameraRef}
+                makeDefault
+                position={defaultCameraPos}
+            />
             <group ref={groupRef}> 
                 {[...Array(maxDartNumber)].map((_, i) => {
                     return (
-                    <mesh ref={dartRef.current[i]} key={i} position={[i - maxDartNumber/2, 0, 0]} castShadow rotation={[ -Math.PI*0.5, 0, 0]}>
+                    <mesh ref={dartRef.current[i]} key={i} position={[i - maxDartNumber/2 + 0.5, 0, 0]} castShadow rotation={[ -Math.PI*0.5, 0, 0]}>
                         <coneGeometry args={[0.1, 0.5, 8]} />
                         {/* <boxGeometry args={[1, 1, 1]} /> */}
                         <meshStandardMaterial color={colors[i]} />
@@ -259,8 +293,8 @@ const Experience = ({canvasRef, cameraRef}) => {
                     )
                 })}
 
-                <mesh ref={boardRef} receiveShadow position={[0, 2.5, -boardDistance]}>
-                    <boxGeometry args={[5, 5, 0.01]} />
+                <mesh ref={boardRef} receiveShadow position={[0, boardHeight/2, -boardDistance]}>
+                    <boxGeometry args={[boardWidth, boardHeight, 0.01]} />
                     <meshStandardMaterial 
                         color={0xeeeeee} 
                         map={dartBoard}

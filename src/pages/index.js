@@ -9,7 +9,6 @@ import Layout from "../components.js/Layout"
 
 const IndexPage = () => {
 	const canvasRef = useRef()
-	const cameraRef = useRef()
 
 	useEffect(() => {
 		console.log('canvasRef', canvasRef)
@@ -28,11 +27,6 @@ const IndexPage = () => {
 				ref={canvasRef}
 			>
 				<color attach="background" args={['#808080']} />
-				<PerspectiveCamera
-					ref={cameraRef}
-					makeDefault
-					position={[0, 2, 12]}
-				/>
 				<XR>
 					<Controllers />
 					{/* <OrbitControls
@@ -40,7 +34,7 @@ const IndexPage = () => {
 						enabled={false}
 					/> */}
 
-					<Experience canvasRef={canvasRef} cameraRef={cameraRef} />
+					<Experience canvasRef={canvasRef} />
 
 					<ambientLight intensity={2.5} />
 					<directionalLight castShadow position={[0, 10, 0]} intensity={1.25} />
